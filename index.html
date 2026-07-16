@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Die Lerntafel</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState } = React;
+
+/* ---------------------------------------------------------
+   Inhalte: 3 Fächer x 5 Stufen x 4 Aufgaben
+   q = Frage, o = Optionen, c = Index der richtigen Antwort,
+   t = dezenter Tipp (verrät die Lösung nicht direkt)
+--------------------------------------------------------- */
+const QUESTIONS = {
+  mathe: [
+    [
+      { q: "4 + 5 = ?", o: ["8", "9", "10", "7"], c: 1, t: "Zähl von der 5 aus noch vier Schritte weiter." },
+      { q: "12 − 7 = ?", o: ["4", "6", "5", "3"], c: 2, t: "Wie weit ist es auf dem Zahlenstrahl von 7 bis 12?" },
+      { q: "3 × 4 = ?", o: ["10", "12", "14", "11"], c: 1, t: "Das ist dasselbe wie die 3 viermal zu addieren." },
+      { q: "20 ÷ 5 = ?", o: ["3", "4", "5", "6"], c: 1, t: "Überlege, wie oft die 5 in die 20 passt." },
+    ],
+    [
+      { q: "23 + 48 = ?", o: ["71", "70", "81", "61"], c: 0, t: "Rechne Zehner und Einer getrennt und füge sie zusammen." },
+      { q: "100 − 37 = ?", o: ["63", "73", "67", "53"], c: 0, t: "Zähl von 37 aus in Gedanken bis 100 hoch." },
+      { q: "1/2 + 1/4 = ?", o: ["3/4", "2/6", "1/6", "3/6"], c: 0, t: "Bring beide Brüche zuerst auf denselben Nenner." },
+      { q: "7 × 8 = ?", o: ["54", "56", "58", "64"], c: 1, t: "Denk an die 7er-Reihe des kleinen Einmaleins." },
+    ],
+    [
+      { q: "25 % von 80 = ?", o: ["15", "20", "25", "30"], c: 1, t: "Ein Viertel eines Wertes entspricht 25 %." },
+      { q: "Löse: x + 7 = 15 → x = ?", o: ["8", "7", "9", "6"], c: 0, t: "Was musst du auf beiden Seiten tun, damit nur noch x übrig bleibt?" },
+      { q: "−5 + 12 = ?", o: ["7", "−7", "17", "−17"], c: 0, t: "Stell dir vor, du stehst bei −5 und gehst 12 Schritte nach rechts." },
+      { q: "Fläche eines Rechtecks 6 cm × 4 cm = ?", o: ["24 cm²", "20 cm²", "10 cm²", "28 cm²"], c: 0, t: "Fläche = Länge mal Breite." },
+    ],
+    [
+      { q: "3² + 4² = ?", o: ["25", "12", "7", "49"], c: 0, t: "Quadriere zuerst jede Zahl für sich, addiere erst danach." },
+      { q: "Löse: 2x − 3 = 11 → x = ?", o: ["7", "8", "6", "5"], c: 0, t: "Bring zuerst die −3 auf die andere Seite der Gleichung." },
+      { q: "Umfang eines Kreises mit Radius 5 (π ≈ 3,14) ≈ ?", o: ["31,4", "15,7", "62,8", "78,5"], c: 0, t: "Der Umfang eines Kreises berechnet sich aus 2 · π · Radius." },
+      { q: "Wie viel ist 5! (5 Fakultät)?", o: ["120", "20", "60", "100"], c: 0, t: "Fakultät heißt: alle Zahlen von 1 bis 5 miteinander multiplizieren." },
+    ],
+    [
+      { q: "Löse: x² − 5x + 6 = 0 → Lösungen?", o: ["x = 2 und x = 3", "x = 1 und x = 6", "x = −2 und x = −3", "x = 5 und x = 1"], c: 0, t: "Gesucht sind zwei Zahlen, die addiert 5 und multipliziert 6 ergeben." },
+      { q: "Ableitung von f(x) = x³ ?", o: ["f'(x) = 3x²", "f'(x) = x²", "f'(x) = 3x", "f'(x) = x³/3"], c: 0, t: "Bei Potenzfunktionen wandert der Exponent als Faktor nach vorne." },
+      { q: "log₂(32) = ?", o: ["5", "4", "6", "16"], c: 0, t: "Frag dich: 2 hoch wie viel ergibt 32?" },
+      { q: "Vereinfache: (2x + 3)(x − 4) = ?", o: ["2x² − 5x − 12", "2x² + 5x − 12", "2x² − 5x + 12", "x² − 5x − 12"], c: 0, t: "Multipliziere jeden Term der ersten Klammer mit jedem der zweiten." },
+    ],
+  ],
+  geografie: [
+    [
+      { q: "Hauptstadt von Deutschland?", o: ["Berlin", "München", "Hamburg", "Köln"], c: 0, t: "Denk an die Stadt mit dem Brandenburger Tor." },
+      { q: "Größter Ozean der Erde?", o: ["Pazifik", "Atlantik", "Indischer Ozean", "Arktischer Ozean"], c: 0, t: "Er liegt zwischen Asien und Amerika." },
+      { q: "Auf welchem Kontinent liegt Ägypten?", o: ["Afrika", "Asien", "Europa", "Südamerika"], c: 0, t: "Der Nil fließt durch diesen Kontinent Richtung Mittelmeer." },
+      { q: "Wie viele Kontinente gibt es (klassische Zählung)?", o: ["7", "5", "6", "8"], c: 0, t: "Zähl mal: Europa, Asien, Afrika, Nordamerika, Südamerika, Australien, Antarktis." },
+    ],
+    [
+      { q: "Hauptstadt von Australien?", o: ["Canberra", "Sydney", "Melbourne", "Perth"], c: 0, t: "Die größte Stadt eines Landes ist nicht immer auch die Hauptstadt." },
+      { q: "Längster Fluss der Welt?", o: ["Nil", "Amazonas", "Jangtse", "Mississippi"], c: 0, t: "Er fließt durch Ägypten Richtung Mittelmeer." },
+      { q: "Welches Land hat heute die meisten Einwohner?", o: ["Indien", "China", "USA", "Indonesien"], c: 0, t: "Ein südasiatisches Land hat China vor kurzem überholt." },
+      { q: "In welchem Gebirge liegt der Mount Everest?", o: ["Himalaya", "Anden", "Alpen", "Atlas"], c: 0, t: "Dieses Gebirge liegt zwischen Indien, Nepal und Tibet." },
+    ],
+    [
+      { q: "Hauptstadt von Kanada?", o: ["Ottawa", "Toronto", "Vancouver", "Montreal"], c: 0, t: "Es ist weder die größte noch die bekannteste Stadt des Landes." },
+      { q: "Größte heiße Wüste der Welt?", o: ["Sahara", "Gobi", "Kalahari", "Atacama"], c: 0, t: "Sie erstreckt sich über weite Teile Nordafrikas." },
+      { q: "Welches Land liegt NICHT am Äquator?", o: ["Deutschland", "Brasilien", "Kenia", "Indonesien"], c: 0, t: "Dieses Land liegt weit im Norden Mitteleuropas." },
+      { q: "Meerenge zwischen Spanien und Marokko?", o: ["Straße von Gibraltar", "Straße von Hormuz", "Bosporus", "Kanal von Sizilien"], c: 0, t: "Benannt nach einem markanten Felsen an der Südspitze Spaniens." },
+    ],
+    [
+      { q: "Hauptstadt von Kasachstan?", o: ["Astana", "Almaty", "Bischkek", "Taschkent"], c: 0, t: "Die Hauptstadt wurde mehrfach umbenannt und liegt nicht in Almaty." },
+      { q: "Welcher Fluss bildet die Grenze zwischen den USA und Mexiko?", o: ["Rio Grande", "Colorado River", "Mississippi", "Rio Bravo Norte"], c: 0, t: "Sein Name bedeutet auf Spanisch so viel wie 'großer Fluss'." },
+      { q: "Welches Land hat die meisten Zeitzonen (durch Überseegebiete)?", o: ["Frankreich", "Russland", "USA", "China"], c: 0, t: "Denk an ein europäisches Land mit vielen kleinen Gebieten rund um den Globus." },
+      { q: "Zwischen welchen Ländern liegt der Titicacasee?", o: ["Bolivien und Peru", "Chile und Argentinien", "Ecuador und Kolumbien", "Brasilien und Bolivien"], c: 0, t: "Er liegt hoch in den Anden zwischen zwei Nachbarländern." },
+    ],
+    [
+      { q: "Hauptstadt von Eswatini (Swasiland)?", o: ["Mbabane", "Maseru", "Gaborone", "Lilongwe"], c: 0, t: "Eine der Optionen ist die Hauptstadt des Nachbarlandes Lesotho – die gesuchte ist es nicht." },
+      { q: "Zu welchem Staat gehören die Pitcairninseln?", o: ["Vereinigtes Königreich", "Frankreich", "Neuseeland", "USA"], c: 0, t: "Ein europäisches Königreich besitzt bis heute mehrere kleine Inseln im Pazifik." },
+      { q: "Tiefster Punkt der Erde (Ozeanboden)?", o: ["Marianengraben", "Puerto-Rico-Graben", "Java-Graben", "Tonga-Graben"], c: 0, t: "Er liegt im Pazifik in der Nähe einer Inselkette mit ähnlichem Namen." },
+      { q: "Welche(s) Land/Länder grenzen an die meisten anderen Länder?", o: ["China oder Russland (je 14)", "USA", "Brasilien", "DR Kongo"], c: 0, t: "Zwei besonders flächengroße Länder in Asien teilen sich diesen Rekord." },
+    ],
+  ],
+  geschichte: [
+    [
+      { q: "In welchem Jahr endete der Zweite Weltkrieg?", o: ["1945", "1939", "1918", "1950"], c: 0, t: "Es war kurz nach der Kapitulation Japans." },
+      { q: "Wer war der erste Mensch auf dem Mond?", o: ["Neil Armstrong", "Buzz Aldrin", "Juri Gagarin", "John Glenn"], c: 0, t: "Er sprach vom 'kleinen Schritt für einen Menschen'." },
+      { q: "Welches Bauwerk fiel 1989?", o: ["Berliner Mauer", "Chinesische Mauer", "Hadrianswall", "Eiserner Vorhang"], c: 0, t: "Es teilte jahrzehntelang eine deutsche Stadt in zwei Hälften." },
+      { q: "In welchem Land begann die Französische Revolution?", o: ["Frankreich", "England", "Spanien", "Italien"], c: 0, t: "Denk an den Sturm auf die Bastille." },
+    ],
+    [
+      { q: "Wann begann der Erste Weltkrieg?", o: ["1914", "1912", "1916", "1918"], c: 0, t: "Es war kurz nach einem Attentat auf einen österreichischen Thronfolger." },
+      { q: "Wer war Bundeskanzler bei der deutschen Wiedervereinigung 1990?", o: ["Helmut Kohl", "Willy Brandt", "Konrad Adenauer", "Gerhard Schröder"], c: 0, t: "Er wird oft als 'Kanzler der Einheit' bezeichnet." },
+      { q: "Welches Volk baute die Pyramiden von Gizeh?", o: ["Die alten Ägypter", "Die Römer", "Die Maya", "Die Babylonier"], c: 0, t: "Sie verehrten Pharaonen und mumifizierten ihre Toten." },
+      { q: "Wer entdeckte 1492 aus europäischer Sicht Amerika?", o: ["Christoph Kolumbus", "Vasco da Gama", "Marco Polo", "Ferdinand Magellan"], c: 0, t: "Er segelte im Auftrag der spanischen Krone Richtung Westen." },
+    ],
+    [
+      { q: "In welchem Jahrhundert lebte Karl der Große?", o: ["8./9. Jahrhundert", "5./6. Jahrhundert", "11./12. Jahrhundert", "3./4. Jahrhundert"], c: 0, t: "Er wurde im Jahr 800 zum Kaiser gekrönt." },
+      { q: "Welches Ereignis löste den Ersten Weltkrieg unmittelbar aus?", o: ["Attentat von Sarajevo", "Angriff auf Polen", "Versenkung der Lusitania", "Oktoberrevolution"], c: 0, t: "Ein österreichischer Thronfolger wurde erschossen." },
+      { q: "Welche Dynastie regierte China bis 1912?", o: ["Qing-Dynastie", "Ming-Dynastie", "Han-Dynastie", "Tang-Dynastie"], c: 0, t: "Es war die letzte Kaiserdynastie Chinas." },
+      { q: "In welchem Jahr wurde die UNO gegründet?", o: ["1945", "1919", "1950", "1939"], c: 0, t: "Es war kurz nach Ende des Zweiten Weltkriegs." },
+    ],
+    [
+      { q: "Wer war römischer Kaiser zur Zeit der Kreuzigung Jesu (ungefähr)?", o: ["Tiberius", "Augustus", "Nero", "Claudius"], c: 0, t: "Er regierte als Nachfolger von Augustus." },
+      { q: "Welcher Vertrag beendete den Ersten Weltkrieg?", o: ["Vertrag von Versailles", "Wiener Kongress", "Vertrag von Utrecht", "Friede von Münster"], c: 0, t: "Benannt nach einem berühmten Schloss bei Paris." },
+      { q: "Erste weibliche Regierungschefin Großbritanniens?", o: ["Margaret Thatcher", "Theresa May", "Elizabeth II.", "Indira Gandhi"], c: 0, t: "Sie wurde später die 'Eiserne Lady' genannt." },
+      { q: "Wann fiel Konstantinopel an die Osmanen?", o: ["1453", "1389", "1492", "1517"], c: 0, t: "Es war Mitte des 15. Jahrhunderts." },
+    ],
+    [
+      { q: "Wer war der letzte Zar Russlands?", o: ["Nikolaus II.", "Alexander III.", "Nikolaus I.", "Peter der Große"], c: 0, t: "Er wurde 1918 zusammen mit seiner Familie erschossen." },
+      { q: "Welcher Vertrag beendete 1648 den Dreißigjährigen Krieg?", o: ["Westfälischer Friede", "Vertrag von Tordesillas", "Frieden von Nimwegen", "Vertrag von Utrecht"], c: 0, t: "Benannt nach einer Region im heutigen Nordrhein-Westfalen." },
+      { q: "In welchem Jahr wurde das Edikt von Nantes erlassen?", o: ["1598", "1685", "1517", "1648"], c: 0, t: "Es gewährte den Hugenotten Religionsfreiheit in Frankreich." },
+      { q: "Wer gründete das Mongolische Reich?", o: ["Dschingis Khan", "Kublai Khan", "Timur", "Attila"], c: 0, t: "Sein Geburtsname war Temüdschin." },
+    ],
+  ],
+};
+
+const SUBJECTS = [
+  { key: "geografie", label: "Geografie", color: "#5FAE8C", chalk: "#BFE3D2" },
+  { key: "geschichte", label: "Geschichte", color: "#C97B4A", chalk: "#EBC7AC" },
+  { key: "mathe", label: "Mathe", color: "#6FA3C4", chalk: "#C6DEEC" },
+];
+
+const LEVELS = ["Grundlagen", "Leicht", "Mittel", "Schwer", "Extrem"];
+
+/* ---------------------------------------------------------
+   Hauptkomponente
+--------------------------------------------------------- */
+function Lerntafel() {
+  const [subject, setSubject] = useState("mathe");
+  const [level, setLevel] = useState(0);
+  const [qIndex, setQIndex] = useState(0);
+  const [selected, setSelected] = useState(null);
+  const [checked, setChecked] = useState(false);
+  const [correctCount, setCorrectCount] = useState(0);
+  const [finished, setFinished] = useState(false);
+  const [showTipp, setShowTipp] = useState(false);
+
+  const subjMeta = SUBJECTS.find((s) => s.key === subject);
+  const set = QUESTIONS[subject][level];
+  const question = set[qIndex];
+
+  const changeSubject = (key) => {
+    setSubject(key);
+    setLevel(0);
+    resetRun();
+  };
+
+  const changeLevel = (idx) => {
+    setLevel(idx);
+    resetRun();
+  };
+
+  const resetRun = () => {
+    setQIndex(0);
+    setSelected(null);
+    setChecked(false);
+    setCorrectCount(0);
+    setFinished(false);
+    setShowTipp(false);
+  };
+
+  const checkAnswer = () => {
+    if (selected === null) return;
+    setChecked(true);
+    if (selected === question.c) setCorrectCount((c) => c + 1);
+  };
+
+  const nextQuestion = () => {
+    if (qIndex + 1 < set.length) {
+      setQIndex((i) => i + 1);
+      setSelected(null);
+      setChecked(false);
+      setShowTipp(false);
+    } else {
+      setFinished(true);
+    }
+  };
+
+  const isCorrect = checked && selected === question.c;
+
+  return (
+    <div
+      className="min-h-screen w-full flex justify-center py-8 px-4"
+      style={{ backgroundColor: "#24372A" }}
+    >
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
+        .chalk-title { font-family: 'Caveat', cursive; }
+        .ui-font { font-family: 'Space Grotesk', sans-serif; }
+        .mono-font { font-family: 'JetBrains Mono', monospace; }
+        ::selection { background: #E8C468; color: #24372A; }
+      `}</style>
+
+      <div className="w-full max-w-3xl ui-font">
+        {/* Kopfbereich */}
+        <div className="text-center mb-6">
+          <h1
+            className="chalk-title text-5xl sm:text-6xl"
+            style={{ color: "#F1EEE2", letterSpacing: "0.5px" }}
+          >
+            Die Lerntafel
+          </h1>
+          <p className="text-sm mt-1" style={{ color: "#9FB3A4" }}>
+            Wähle ein Fach, klettere die Schwierigkeits­stufen hoch und hol dir bei Bedarf einen
+            Tipp — die Lösung findest du selbst.
+          </p>
+        </div>
+
+        {/* Fach-Tabs */}
+        <div className="flex gap-2 justify-center mb-6 flex-wrap">
+          {SUBJECTS.map((s) => (
+            <button
+              key={s.key}
+              onClick={() => changeSubject(s.key)}
+              className="px-5 py-2 rounded-t-lg font-semibold text-sm transition-all border-b-4"
+              style={{
+                backgroundColor: subject === s.key ? "#F1EEE2" : "transparent",
+                color: subject === s.key ? "#24372A" : s.chalk,
+                borderBottomColor: s.color,
+              }}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Stufen-Treppe */}
+        <div
+          className="rounded-2xl border-2 p-5 mb-6"
+          style={{ borderColor: "#3E5945", backgroundColor: "rgba(241,238,226,0.03)" }}
+        >
+          <p className="mono-font text-xs mb-3 tracking-widest" style={{ color: "#9FB3A4" }}>
+            STUFE WÄHLEN
+          </p>
+          <div className="flex items-end gap-2 sm:gap-3 justify-center">
+            {LEVELS.map((name, i) => (
+              <button
+                key={name}
+                onClick={() => changeLevel(i)}
+                className="flex flex-col items-center justify-end rounded-t-md transition-all"
+                style={{
+                  width: "58px",
+                  height: `${44 + i * 18}px`,
+                  backgroundColor: level === i ? subjMeta.color : "#33473A",
+                  border: level === i ? `2px solid ${subjMeta.chalk}` : "2px solid transparent",
+                }}
+              >
+                <span
+                  className="mono-font text-xs font-bold pb-1"
+                  style={{ color: level === i ? "#1B2B1F" : "#CFE3D6" }}
+                >
+                  {i + 1}
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="flex justify-center gap-2 sm:gap-3 mt-2">
+            {LEVELS.map((name) => (
+              <span
+                key={name}
+                className="text-[10px] sm:text-xs text-center"
+                style={{ width: "58px", color: "#9FB3A4" }}
+              >
+                {name}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Fragekarte */}
+        <div
+          className="rounded-2xl border-4 p-6 relative"
+          style={{
+            borderColor: "#6B4A32",
+            backgroundColor: "#1B2B1F",
+            boxShadow: "inset 0 0 40px rgba(0,0,0,0.25)",
+          }}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <span
+              className="text-xs font-semibold px-3 py-1 rounded-full"
+              style={{ backgroundColor: subjMeta.color, color: "#1B2B1F" }}
+            >
+              {subjMeta.label} · Stufe {level + 1}: {LEVELS[level]}
+            </span>
+            <span className="mono-font text-xs" style={{ color: "#9FB3A4" }}>
+              Frage {qIndex + 1}/{set.length}
+            </span>
+          </div>
+
+          {!finished ? (
+            <>
+              <h2
+                className="chalk-title text-3xl sm:text-4xl mb-5"
+                style={{ color: "#F1EEE2" }}
+              >
+                {question.q}
+              </h2>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                {question.o.map((opt, i) => {
+                  const isSel = selected === i;
+                  let border = "#3E5945";
+                  let bg = "transparent";
+                  if (checked && i === question.c) {
+                    border = "#7CC28C";
+                    bg = "#7CC28C22";
+                  } else if (checked && isSel && i !== question.c) {
+                    border = "#E08A6A";
+                    bg = "#E08A6A22";
+                  } else if (isSel) {
+                    border = subjMeta.color;
+                  }
+                  return (
+                    <button
+                      key={i}
+                      disabled={checked}
+                      onClick={() => setSelected(i)}
+                      className="text-left rounded-lg border-2 px-4 py-3 text-sm sm:text-base transition-colors disabled:cursor-default"
+                      style={{ borderColor: border, backgroundColor: bg, color: "#F1EEE2" }}
+                    >
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {checked && (
+                <p
+                  className="mt-4 font-semibold text-sm"
+                  style={{ color: isCorrect ? "#7CC28C" : "#E08A6A" }}
+                >
+                  {isCorrect
+                    ? "Richtig! Gut gemacht."
+                    : `Nicht ganz. Die richtige Antwort war: „${question.o[question.c]}".`}
+                </p>
+              )}
+
+              <div className="flex flex-wrap items-center gap-4 mt-5">
+                {!checked ? (
+                  <button
+                    onClick={checkAnswer}
+                    disabled={selected === null}
+                    className="rounded-lg px-5 py-2 text-sm font-semibold disabled:opacity-40"
+                    style={{ backgroundColor: subjMeta.color, color: "#1B2B1F" }}
+                  >
+                    Antwort prüfen
+                  </button>
+                ) : (
+                  <button
+                    onClick={nextQuestion}
+                    className="rounded-lg px-5 py-2 text-sm font-semibold"
+                    style={{ backgroundColor: "#F1EEE2", color: "#1B2B1F" }}
+                  >
+                    {qIndex + 1 < set.length ? "Nächste Frage" : "Stufe abschließen"}
+                  </button>
+                )}
+
+                {!checked && (
+                  <button
+                    onClick={() => setShowTipp((v) => !v)}
+                    className="text-xs underline underline-offset-4 decoration-dotted"
+                    style={{ color: "#8FA396" }}
+                  >
+                    {showTipp ? "Tipp ausblenden" : "Tipp"}
+                  </button>
+                )}
+              </div>
+
+              {showTipp && !checked && (
+                <p
+                  className="mt-3 text-xs italic"
+                  style={{ color: "#7C9184" }}
+                >
+                  {question.t}
+                </p>
+              )}
+            </>
+          ) : (
+            <div className="text-center py-6">
+              <p className="chalk-title text-4xl mb-2" style={{ color: "#F1EEE2" }}>
+                Stufe geschafft!
+              </p>
+              <p className="mb-5" style={{ color: "#CFE3D6" }}>
+                Du hast {correctCount} von {set.length} Aufgaben in{" "}
+                <strong>{subjMeta.label} · {LEVELS[level]}</strong> richtig gelöst.
+              </p>
+              <div className="flex flex-wrap gap-3 justify-center">
+                <button
+                  onClick={resetRun}
+                  className="rounded-lg px-5 py-2 text-sm font-semibold border-2"
+                  style={{ borderColor: "#3E5945", color: "#F1EEE2" }}
+                >
+                  Stufe wiederholen
+                </button>
+                {level + 1 < LEVELS.length && (
+                  <button
+                    onClick={() => changeLevel(level + 1)}
+                    className="rounded-lg px-5 py-2 text-sm font-semibold"
+                    style={{ backgroundColor: subjMeta.color, color: "#1B2B1F" }}
+                  >
+                    Weiter zu Stufe {level + 2}: {LEVELS[level + 1]}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <p className="text-center text-xs mt-6" style={{ color: "#5F7A69" }}>
+          Der Tipp gibt nur einen dezenten Denkanstoß — die Lösung findest du selbst heraus.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<Lerntafel />);
+</script>
+</body>
+</html>
